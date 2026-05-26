@@ -32,7 +32,6 @@ bnn_prior_models/*
 
 # You can also ignore compiled binaries or temp output folders
 *.csv
-*.npz
 *.json
 *.rds
 *.log
@@ -44,6 +43,11 @@ bnn_prior_models/*
 
 big_files.txt
 *.png
+
+# Keep small datasets, exclude results npz if any
+results/
+!datasets/
+
 
 bnn_priors/cmdstan/
 bnn_models/
