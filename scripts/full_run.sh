@@ -35,7 +35,8 @@ for model in "${MODELS[@]}"; do
             --task regression \
             --model "$model" \
             --H "$H" --L "$L" \
-            --warmup 1000 --sample 2000 \
+            --warmup 2000 --sample 2000 \
+            --overwrite \
             >> "$logfile" 2>&1
         echo "=== Done: $model H=$H L=$L ===" | tee -a "$logfile"
     done
