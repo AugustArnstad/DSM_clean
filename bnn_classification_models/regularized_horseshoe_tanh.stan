@@ -54,7 +54,7 @@ parameters {
   matrix[P, H] W1_raw;
 
   // Internal layers (2..L): per-weight horseshoe, separate tau/c_sq per layer
-  array[max(L - 1, 1)] array[H] vector<lower=0, upper=50>[H] lambda_internal;
+  array[max(L - 1, 1), H] vector<lower=0, upper=50>[H] lambda_internal;
   array[max(L - 1, 1)] real<lower=1e-6> tau_internal;
   array[max(L - 1, 1)] vector<lower=0>[H] c_sq_internal;
   array[max(L - 1, 1)] matrix[H, H] W_internal_raw;
@@ -82,7 +82,7 @@ transformed parameters {
       W_1[i, j] = W1_raw[i, j] * fmax(1e-12, sqrt(lambda_tilde[j][i]) * tau);
 
   // Internal layer shrinkage and non-centered weights
-  array[max(L - 1, 1)] array[H] vector<lower=0>[H] lambda_tilde_internal;
+  array[max(L - 1, 1), H] vector<lower=0>[H] lambda_tilde_internal;
   array[max(L - 1, 1)] matrix[H, H] W_internal;
 
   if (L > 1) {

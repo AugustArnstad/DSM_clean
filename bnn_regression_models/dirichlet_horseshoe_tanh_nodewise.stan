@@ -58,7 +58,7 @@ parameters {
 
   // Internal layers (2..L): node-level horseshoe + simplex[H] per output node
   array[L-1] vector<lower=0>[H] lambda_internal_node;
-  array[L-1] array[H] simplex[H] phi_internal;
+  array[L-1, H] simplex[H] phi_internal;
   array[L-1] real<lower=1e-6> tau_internal;
   array[L-1] vector<lower=0>[H] c_sq_internal;
   array[L-1] matrix[H, H] W_internal_raw;

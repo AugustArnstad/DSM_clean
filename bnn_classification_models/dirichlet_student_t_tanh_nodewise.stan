@@ -57,7 +57,7 @@ parameters {
 
   // Internal layers (2..L): node-level student_t + simplex[H] per output node
   array[max(L - 1, 1)] vector<lower=0, upper=50>[H] lambda_internal_node;
-  array[max(L - 1, 1)] array[H] simplex[H] phi_internal;
+  array[max(L - 1, 1), H] simplex[H] phi_internal;
   array[max(L - 1, 1)] real<lower=1e-6> tau_internal;
   array[max(L - 1, 1)] vector<lower=0>[H] c_sq_internal;
   array[max(L - 1, 1)] matrix[H, H] W_internal_raw;
