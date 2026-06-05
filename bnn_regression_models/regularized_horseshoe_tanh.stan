@@ -1,5 +1,5 @@
 // =====================
-// Bayesian Neural Network with Regularized Horseshoe Prior (Input Layer Only)
+// Bayesian Neural Network with Regularized Horseshoe Prior
 // =====================
 
 functions {
@@ -47,13 +47,18 @@ data {
 }
 
 parameters {
+  // Input layer (layer 1): per-weight horseshoe
   array[H] vector<lower=0, upper=50>[P] lambda;
   real<lower=1e-6> tau;
   vector<lower=0>[H] c_sq;
-
   matrix[P, H] W1_raw;
 
-  array[max(L - 1, 1)] matrix[H, H] W_internal;
+  // Internal layers (2..L): per-weight horseshoe, separate tau/c_sq per layer
+  array[max(L - 1, 1)] array[H] vector<lower=0, upper=50>[H] lambda_internal;
+  array[max(L - 1, 1)] real<lower=1e-6> tau_internal;
+  array[max(L - 1, 1)] vector<lower=0>[H] c_sq_internal;
+  array[max(L - 1, 1)] matrix[H, H] W_internal_raw;
+
   array[L] row_vector[H] hidden_bias;
   matrix[H, output_nodes] W_L;
   row_vector[output_nodes] output_bias;
@@ -63,6 +68,7 @@ parameters {
 transformed parameters {
   real<lower=1e-6> tau_0 = (1.0 * p_0 / (P - p_0)) / sqrt(N);
 
+  // Input layer shrinkage
   array[H] vector<lower=0>[P] lambda_tilde;
   for (j in 1:H) {
     for (i in 1:P) {
@@ -76,28 +82,50 @@ transformed parameters {
     for (i in 1:P)
       W_1[i, j] = W1_raw[i, j] * fmax(1e-12, sqrt(lambda_tilde[j][i]) * tau);
 
-  
+  // Internal layer shrinkage and non-centered weights
+  array[max(L - 1, 1)] array[H] vector<lower=0>[H] lambda_tilde_internal;
+  array[max(L - 1, 1)] matrix[H, H] W_internal;
+
+  if (L > 1) {
+    for (l in 1:(L - 1)) {
+      for (j in 1:H) {
+        for (i in 1:H) {
+          lambda_tilde_internal[l][j][i] = fmax(
+            1e-12,
+            c_sq_internal[l][j] * square(lambda_internal[l][j][i]) /
+            (c_sq_internal[l][j] + square(lambda_internal[l][j][i]) * square(tau_internal[l]))
+          );
+        }
+        for (i in 1:H)
+          W_internal[l][i, j] = W_internal_raw[l][i, j] *
+            fmax(1e-12, sqrt(lambda_tilde_internal[l][j][i]) * tau_internal[l]);
+      }
+    }
+  }
+
   matrix[N, output_nodes] output = nn_predict(
     X, W_1, W_internal,
     hidden_bias, W_L, output_bias, L);
-
 }
 
 model {
-  // Regularized Horseshoe priors
-  for (j in 1:H) {
+  // Input layer priors
+  for (j in 1:H)
     lambda[j] ~ cauchy(0, 1);
-  }
-  //lambda ~ cauchy(0, 1);
   tau ~ cauchy(0, tau_0);
   c_sq ~ inv_gamma(a, b);
   to_vector(W1_raw) ~ normal(0, 1);
 
-  // Other layers: weak prior
+  // Internal layer priors
   if (L > 1) {
-    for (l in 1:(L - 1))
+    for (l in 1:(L - 1)) {
+      real tau_0_internal = 1.0 / sqrt(N);
       for (j in 1:H)
-        W_internal[l][, j] ~ normal(0, 1);
+        lambda_internal[l][j] ~ cauchy(0, 1);
+      tau_internal[l] ~ cauchy(0, tau_0_internal);
+      c_sq_internal[l] ~ inv_gamma(a, b);
+      to_vector(W_internal_raw[l]) ~ normal(0, 1);
+    }
   }
 
   for (l in 1:L)
@@ -107,7 +135,7 @@ model {
     W_L[, j] ~ normal(0, 1);
 
   output_bias ~ normal(0, 1);
-  sigma ~ inv_gamma(3, 2); //normal(0, 1);
+  sigma ~ inv_gamma(3, 2);
 
   for (n in 1:N)
     for (j in 1:output_nodes)
@@ -130,4 +158,3 @@ generated quantities {
     for (j in 1:output_nodes)
       log_lik[n] += normal_lpdf(y[n, j] | output[n, j], sigma);
 }
-

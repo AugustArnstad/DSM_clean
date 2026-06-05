@@ -15,7 +15,6 @@ functions {
     int H = cols(W_1);
     array[L] matrix[N, H] hidden;
 
-    //hidden[1] = fmax((X * W_1 + rep_vector(1.0, N) * hidden_bias[1]), 0);
     hidden[1] = tanh(X * W_1 + rep_vector(1.0, N) * hidden_bias[1]);
 
     if (L > 1) {
@@ -49,40 +48,67 @@ data {
 }
 
 parameters {
+  // Input layer (layer 1)
   real<lower=1e-6> tau;
   vector<lower=0>[H] c_sq;
   vector<lower=0, upper=50>[H] lambda_node;
   array[H] simplex[P] phi_data;
-
   matrix[P, H] W1_raw;
 
-  array[max(L - 1, 1)] matrix[H, H] W_internal;
+  // Internal layers (2..L): node-level student_t + simplex[H] per output node
+  array[max(L - 1, 1)] vector<lower=0, upper=50>[H] lambda_internal_node;
+  array[max(L - 1, 1)] array[H] simplex[H] phi_internal;
+  array[max(L - 1, 1)] real<lower=1e-6> tau_internal;
+  array[max(L - 1, 1)] vector<lower=0>[H] c_sq_internal;
+  array[max(L - 1, 1)] matrix[H, H] W_internal_raw;
+
   array[L] row_vector[H] hidden_bias;
   matrix[H, output_nodes] W_L;
   row_vector[output_nodes] output_bias;
 }
 
 transformed parameters {
-  //real<lower=1e-6> tau_0 = (p_0 * 1.0) / (P - p_0) * 1 / sqrt(N);
   real<lower=1e-6> tau_0 = 1 / sqrt(N);
-  
-  vector<lower=0>[H] lambda_tilde_node;
 
+  // Input layer shrinkage
+  vector<lower=0>[H] lambda_tilde_node;
   for (j in 1:H) {
     lambda_tilde_node[j] = fmax(
-    1e-12, 
-    c_sq[j] * square(lambda_node[j]) /
-    (c_sq[j] + square(lambda_node[j]) * square(tau))
+      1e-12,
+      c_sq[j] * square(lambda_node[j]) /
+      (c_sq[j] + square(lambda_node[j]) * square(tau))
     );
   }
 
   matrix[P, H] W_1;
   for (j in 1:H) {
     for (i in 1:P) {
-      real stddev = fmax(1e-12, 
-      tau * 
-      sqrt(lambda_tilde_node[j]) * sqrt(phi_data[j][i]));
+      real stddev = fmax(1e-12,
+        tau * sqrt(lambda_tilde_node[j]) * sqrt(phi_data[j][i]));
       W_1[i, j] = stddev * W1_raw[i, j];
+    }
+  }
+
+  // Internal layer shrinkage and non-centered weights
+  array[max(L - 1, 1)] vector<lower=0>[H] lambda_tilde_internal_node;
+  array[max(L - 1, 1)] matrix[H, H] W_internal;
+
+  if (L > 1) {
+    for (l in 1:(L - 1)) {
+      for (j in 1:H) {
+        lambda_tilde_internal_node[l][j] = fmax(
+          1e-12,
+          c_sq_internal[l][j] * square(lambda_internal_node[l][j]) /
+          (c_sq_internal[l][j] + square(lambda_internal_node[l][j]) * square(tau_internal[l]))
+        );
+      }
+      for (j in 1:H) {
+        for (i in 1:H) {
+          real stddev = fmax(1e-12,
+            tau_internal[l] * sqrt(lambda_tilde_internal_node[l][j]) * sqrt(phi_internal[l][j][i]));
+          W_internal[l][i, j] = stddev * W_internal_raw[l][i, j];
+        }
+      }
     }
   }
 
@@ -92,19 +118,24 @@ transformed parameters {
 }
 
 model {
+  // Input layer priors
   tau ~ cauchy(0, tau_0);
   c_sq ~ inv_gamma(a, b);
   lambda_node ~ student_t(3, 0, 1);
-  
-  for (j in 1:H) {
+  for (j in 1:H)
     phi_data[j] ~ dirichlet(alpha);
-  }
   to_vector(W1_raw) ~ normal(0, 1);
 
+  // Internal layer priors
   if (L > 1) {
     for (l in 1:(L - 1)) {
+      real tau_0_internal = 1.0 / sqrt(N);
+      tau_internal[l] ~ cauchy(0, tau_0_internal);
+      c_sq_internal[l] ~ inv_gamma(a, b);
+      lambda_internal_node[l] ~ student_t(3, 0, 1);
       for (j in 1:H)
-        W_internal[l][, j] ~ normal(0, 1);
+        phi_internal[l][j] ~ dirichlet(rep_vector(0.1, H));
+      to_vector(W_internal_raw[l]) ~ normal(0, 1);
     }
   }
 
@@ -137,4 +168,4 @@ generated quantities {
   vector[N] log_lik;
   for (n in 1:N)
     log_lik[n] = categorical_logit_lpmf(y[n] | to_vector(output[n]));
-} 
+}

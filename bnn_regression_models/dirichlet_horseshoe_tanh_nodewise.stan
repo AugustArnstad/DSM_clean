@@ -34,13 +34,13 @@ data {
   matrix[N, P] X;
   int<lower=1> output_nodes;
   matrix[N, output_nodes] y;
-  
+
   int<lower=1> L;
   int<lower=1> H;
-  
+
   int<lower=1> N_test;
   matrix[N_test, P] X_test;
-  
+
   int<lower=1> p_0;
   real<lower=0> a;
   real<lower=0> b;
@@ -49,16 +49,20 @@ data {
 }
 
 parameters {
-  // vector<lower=0, upper=50>[H] lambda_node;   // one per hidden unit (node)
-  vector<lower=0>[H] lambda_node;   
-  array[H] simplex[P] phi_data;               // still per node, across inputs
+  // Input layer (layer 1)
+  vector<lower=0>[H] lambda_node;
+  array[H] simplex[P] phi_data;
   real<lower=1e-6> tau;
   vector<lower=0>[H] c_sq;
-
   matrix[P, H] W1_raw;
 
-  // array[max(L - 1, 1)] matrix[H, H] W_internal;
-  array[L-1] matrix[H, H] W_internal;
+  // Internal layers (2..L): node-level horseshoe + simplex[H] per output node
+  array[L-1] vector<lower=0>[H] lambda_internal_node;
+  array[L-1] array[H] simplex[H] phi_internal;
+  array[L-1] real<lower=1e-6> tau_internal;
+  array[L-1] vector<lower=0>[H] c_sq_internal;
+  array[L-1] matrix[H, H] W_internal_raw;
+
   array[L] row_vector[H] hidden_bias;
   matrix[H, output_nodes] W_L;
   row_vector[output_nodes] output_bias;
@@ -69,31 +73,38 @@ parameters {
 transformed parameters {
   real<lower=1e-6> tau_0 = (p_0 * 1.0) / (P - p_0) * 1 / sqrt(N);
 
+  // Input layer shrinkage
   vector<lower=0>[H] lambda_tilde_node;
-
-  // for (j in 1:H) {
-    // lambda_tilde_node[j] = fmax(
-      // 1e-12,
-      // c_sq[j] * square(lambda_node[j]) /
-      // (c_sq[j] + square(lambda_node[j]) * square(tau))
-    // );
-  // }
   for (j in 1:H) {
     lambda_tilde_node[j] = c_sq[j] * square(lambda_node[j]) /
                           (c_sq[j] + square(lambda_node[j]) * square(tau));
   }
 
   matrix[P, H] W_1;
-  // for (j in 1:H) {
-    // for (i in 1:P) {
-      // real stddev = fmax(1e-12, tau * sqrt(lambda_tilde_node[j]) * sqrt(phi_data[j][i])) / sqrt(P);
-      // W_1[i, j] = stddev * W1_raw[i, j];
-    // }
-  // }
   for (j in 1:H) {
     for (i in 1:P) {
       real stddev = tau * sqrt(lambda_tilde_node[j]) * sqrt(phi_data[j][i]) / sqrt(P);
       W_1[i, j] = stddev * W1_raw[i, j];
+    }
+  }
+
+  // Internal layer shrinkage and non-centered weights
+  array[L-1] vector<lower=0>[H] lambda_tilde_internal_node;
+  array[L-1] matrix[H, H] W_internal;
+
+  if (L > 1) {
+    for (l in 1:(L - 1)) {
+      for (j in 1:H) {
+        lambda_tilde_internal_node[l][j] = c_sq_internal[l][j] * square(lambda_internal_node[l][j]) /
+          (c_sq_internal[l][j] + square(lambda_internal_node[l][j]) * square(tau_internal[l]));
+      }
+      for (j in 1:H) {
+        for (i in 1:H) {
+          real stddev = tau_internal[l] * sqrt(lambda_tilde_internal_node[l][j]) *
+                        sqrt(phi_internal[l][j][i]) / sqrt(H);
+          W_internal[l][i, j] = stddev * W_internal_raw[l][i, j];
+        }
+      }
     }
   }
 
@@ -102,20 +113,24 @@ transformed parameters {
 
 
 model {
+  // Input layer priors
   tau ~ cauchy(0, tau_0);
   c_sq ~ inv_gamma(a, b);
-
   lambda_node ~ cauchy(0, 1);
   for (j in 1:H)
     phi_data[j] ~ dirichlet(alpha);
-
   to_vector(W1_raw) ~ normal(0, 1/sqrt(H));
 
+  // Internal layer priors
   if (L > 1) {
     for (l in 1:(L - 1)) {
-      for (j in 1:H) {
-        W_internal[l][, j] ~ normal(0, 1/sqrt(H));
-      }
+      real tau_0_internal = 1.0 / sqrt(N);
+      tau_internal[l] ~ cauchy(0, tau_0_internal);
+      c_sq_internal[l] ~ inv_gamma(a, b);
+      lambda_internal_node[l] ~ cauchy(0, 1);
+      for (j in 1:H)
+        phi_internal[l][j] ~ dirichlet(rep_vector(0.1, H));
+      to_vector(W_internal_raw[l]) ~ normal(0, 1/sqrt(H));
     }
   }
 
@@ -126,7 +141,6 @@ model {
     W_L[, j] ~ normal(0, 1/sqrt(H));
 
   output_bias ~ normal(0, 1/sqrt(H));
-  // sigma ~ inv_gamma(3, 2);
   sigma ~ lognormal(0, 0.5);
 
   // Likelihood

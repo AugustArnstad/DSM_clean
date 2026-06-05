@@ -27,6 +27,12 @@ bnn_prior_models/*
 !bnn_regression_models/*.stan
 !bnn_classification_models/*.stan
 !bnn_prior_models/*.stan
+# Compiled Stan binaries (remote will recompile)
+bnn_regression_models/dirichlet_horseshoe
+bnn_regression_models/dirichlet_laplace
+bnn_regression_models/regularized_horseshoe
+bnn_classification_models/regularized_horseshoe_tanh
+bnn_classification_models/regularized_horseshoe
 
 
 
@@ -46,6 +52,7 @@ big_files.txt
 
 # Keep small datasets, exclude results npz if any
 results/
+Abalone_matrices/
 !datasets/
 
 
@@ -55,3 +62,5 @@ csv_files/
 figures/
 individual_notebooks/
 local_files/
+
+
