@@ -10,8 +10,8 @@ mkdir -p logs
 MODELS=(
     #gaussian_tanh
     #regularized_horseshoe_tanh
-    dirichlet_horseshoe_tanh_nodewise
-    #dirichlet_student_t_tanh_nodewise
+    #dirichlet_horseshoe_tanh_nodewise
+    dirichlet_student_t_tanh_nodewise
 )
 
 HL_COMBOS=(
