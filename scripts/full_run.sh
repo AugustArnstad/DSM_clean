@@ -33,12 +33,13 @@ for model in "${MODELS[@]}"; do
         logfile="logs/${model}_H${H}_L${L}.log"
         echo "=== Starting: $model H=$H L=$L ===" | tee -a "$logfile"
         python3.11 utils/run_models.py \
-            --task regression \
-            --model "$model" \
-            --H "$H" --L "$L" \
-            --warmup 2000 --sample 2000 \
-            --overwrite \
-            >> "$logfile" 2>&1
+        --task regression \
+        --model "$model" \
+        --H "$H" --L "$L" \
+        --warmup 2000 --sample 2000 \
+        --overwrite \
+        --output_dir results_new \
+        >> "$logfile" 2>&1
         echo "=== Done: $model H=$H L=$L ===" | tee -a "$logfile"
     done
 done
