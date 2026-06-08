@@ -9,20 +9,21 @@ mkdir -p logs
 
 MODELS=(
     #gaussian_tanh
-    #regularized_horseshoe_tanh
+    regularized_horseshoe_tanh
     dirichlet_horseshoe_tanh_nodewise
     #dirichlet_student_t_tanh_nodewise
 )
 
 HL_COMBOS=(
-    "16 2"
-    "16 3"
+    "16 1"
+    # "16 2"
+    # "16 3"
     "32 1"
-    "32 2"
-    "32 3"
-    "64 1"
-    "64 2"
-    "64 3"
+    # "32 2"
+    # "32 3"
+    # "64 1"
+    # "64 2"
+    # "64 3"
 )
 
 for model in "${MODELS[@]}"; do

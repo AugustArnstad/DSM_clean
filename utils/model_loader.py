@@ -6,10 +6,19 @@ from cmdstanpy import from_csv
 # Maps display name -> (prior_subdir, posterior_subdir) under results_dir/
 MODEL_PATHS = {
     # BNN models (paper Section 5)
-    "Gaussian":              ("gaussian_tanh_prior",                    "gaussian_tanh"),
-    "RHS":                   ("regularized_horseshoe_tanh_prior",       "regularized_horseshoe_tanh"),
-    "DHS":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise"),
-    "DST":                   ("dirichlet_student_t_tanh_nodewise_prior", "dirichlet_student_t_tanh_nodewise"),
+    # "Gaussian":              ("gaussian_tanh_prior",                    "gaussian_tanh"),
+    # "RHS":                   ("regularized_horseshoe_tanh_prior",       "regularized_horseshoe_tanh"),
+    # "DHS":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise"),
+    # "DST":                   ("dirichlet_student_t_tanh_nodewise_prior", "dirichlet_student_t_tanh_nodewise"),
+    "Gaussian":              ("gaussian_tanh_prior",                    "gaussian_tanh_H16_L1"),
+    "RHS":                   ("regularized_horseshoe_tanh_prior",       "regularized_horseshoe_tanh_H16_L1"),
+    "DHS_H16_L1":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H16_L1"),
+    "DHS_H16_L2":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H16_L2"),
+    "DHS_H16_L3":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H16_L3"),
+    "DHS_H32_L1":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H32_L1"),
+    "DHS_H32_L2":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H32_L2"),
+    "DHS_H64_L1":                   ("dirichlet_horseshoe_tanh_nodewise_prior", "dirichlet_horseshoe_tanh_nodewise_H64_L1"),
+    "DST":                   ("dirichlet_student_t_tanh_nodewise_prior", "dirichlet_student_t_tanh_nodewise_H16_L1"),
     # Linear regression models (paper Fig 3-4)
     "Linreg Gaussian":                    ("linreg_gaussian",                    "linreg_gaussian"),
     "Linreg Regularized Horseshoe scaled":("linreg_regularized_horseshoe_scaled", "linreg_regularized_horseshoe_scaled"),
